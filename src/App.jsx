@@ -54,6 +54,8 @@ export default function App() {
   // Refs to prevent accidental clicks after dragging or swiping
   const isDraggingRef = useRef(false);
   const mouseDownPos = useRef({ x: 0, y: 0 });
+  const scrollContainerRef = useRef(null);
+  const swipeStartRef = useRef(null);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -82,6 +84,36 @@ export default function App() {
   const handlePrevWeek = () => setCurrentWeekStart(prev => addDays(prev, -7));
   const handleNextWeek = () => setCurrentWeekStart(prev => addDays(prev, 7));
   const handleToday = () => setCurrentWeekStart(getStartOfWeek(new Date()));
+
+  const handleSwipeStart = (e) => {
+    // Ignore right-clicks or multi-touch scaling
+    if (e.button === 2 || (e.touches && e.touches.length > 1)) return;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    swipeStartRef.current = { x: clientX, y: clientY, time: Date.now() };
+  };
+
+  const handleSwipeEnd = (e) => {
+    if (!swipeStartRef.current) return;
+    const endX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+    const endY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
+    const dx = swipeStartRef.current.x - endX;
+    const dy = Math.abs(swipeStartRef.current.y - endY);
+    const timeElapsed = Date.now() - swipeStartRef.current.time;
+
+    // Detect a deliberate horizontal swipe (fast, mostly horizontal, enough distance)
+    if (Math.abs(dx) > 75 && dy < 100 && timeElapsed < 1000) {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+      
+      const isAtLeftEdge = container.scrollLeft <= 10;
+      const isAtRightEdge = container.scrollLeft >= container.scrollWidth - container.clientWidth - 10;
+
+      if (dx > 0 && isAtRightEdge) handleNextWeek(); // Swiped left while at the right edge
+      else if (dx < 0 && isAtLeftEdge) handlePrevWeek(); // Swiped right while at the left edge
+    }
+    swipeStartRef.current = null;
+  };
 
   const toggleFlexibleTask = (id) => {
     setFlexibleTasks(prev => prev.map(task => 
@@ -346,7 +378,15 @@ export default function App() {
       <div className="flex flex-1 overflow-hidden relative">
         
         {/* MAIN CALENDAR AREA */}
-        <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar touch-pan-x touch-pan-y relative" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <div 
+          className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar touch-pan-x touch-pan-y relative" 
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          ref={scrollContainerRef}
+          onTouchStart={handleSwipeStart}
+          onTouchEnd={handleSwipeEnd}
+          onMouseDown={handleSwipeStart}
+          onMouseUp={handleSwipeEnd}
+        >
           <style>{`.custom-scrollbar::-webkit-scrollbar { display: none; }`}</style>
           <div className="min-w-[800px] flex flex-col h-full">
             
@@ -425,7 +465,7 @@ export default function App() {
             <div className="flex relative bg-slate-950 flex-1">
               <div className="w-14 sm:w-16 flex-shrink-0 border-r border-slate-800 bg-slate-900/60 relative" style={{ height: `${24 * 60}px` }}>
                 {hours.map(h => (
-                  <div key={h} className="absolute w-full text-right pr-1 sm:pr-2 text-[9px] sm:text-[10px] font-mono text-slate-500 -mt-2" style={{ top: `${h * 60}px` }}>
+                  <div key={h} className="absolute w-full text-right pr-1.5 sm:pr-2 text-xs sm:text-sm font-mono text-slate-400 -mt-2.5" style={{ top: `${h * 60}px` }}>
                     {String(h).padStart(2, '0')}:00
                   </div>
                 ))}
@@ -485,14 +525,14 @@ export default function App() {
                         >
                           <div className="flex justify-between items-start">
                             <div className="flex items-center space-x-1 overflow-hidden pr-1">
-                              {(task.repeat === 'daily' || task.repeat === 'weekly') && <Repeat size={8} className="text-cyan-300 flex-shrink-0" />}
-                              <div className="text-[10px] sm:text-xs font-semibold text-cyan-50 leading-tight truncate">{task.title}</div>
+                              {(task.repeat === 'daily' || task.repeat === 'weekly') && <Repeat size={10} className="text-cyan-300 flex-shrink-0" />}
+                              <div className="text-xs sm:text-sm font-semibold text-cyan-50 leading-tight truncate">{task.title}</div>
                             </div>
                             <button onClick={(e) => handleDeleteTask(task.id, 'scheduled', e, dateStr)} className="text-slate-400 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0 bg-slate-900 rounded-sm p-0.5">
-                              <X size={10} className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                              <X size={12} className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                             </button>
                           </div>
-                          <div className="text-[8px] sm:text-[10px] font-mono text-cyan-400 mt-0.5 opacity-80 truncate">{formatTimeDisplay(task.startTime)} - {formatTimeDisplay(task.endTime)}</div>
+                          <div className="text-[10px] sm:text-xs font-mono text-cyan-400 mt-0.5 opacity-80 truncate">{formatTimeDisplay(task.startTime)} - {formatTimeDisplay(task.endTime)}</div>
                         </div>
                       );
                     })}
