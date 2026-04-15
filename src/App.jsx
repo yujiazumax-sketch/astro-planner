@@ -49,6 +49,10 @@ const formatDate = (date) => {
 const getDayName = (date) => ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][date.getDay()];
 const formatTimeDisplay = (timeStr) => timeStr;
 
+const START_HOUR = 7;
+const END_HOUR = 24;
+const TOTAL_HOURS = END_HOUR - START_HOUR;
+
 export default function App() {
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(new Date()));
   const [isDatabankOpen, setIsDatabankOpen] = useState(false);
@@ -171,7 +175,7 @@ export default function App() {
 
   // --- Derived Data ---
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i)), [currentWeekStart]);
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => i + START_HOUR);
 
   // --- Handlers ---
   const handlePrevWeek = () => {
@@ -260,13 +264,13 @@ export default function App() {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = clientY - rect.top;
     const snappedMinutes = Math.floor(y / 15) * 15;
-    const startH = Math.floor(snappedMinutes / 60);
+    const startH = Math.floor(snappedMinutes / 60) + START_HOUR;
     const startM = snappedMinutes % 60;
     const endMinutes = snappedMinutes + 60;
-    const endH = Math.floor(endMinutes / 60);
+    const endH = Math.floor(endMinutes / 60) + START_HOUR;
     const endM = endMinutes % 60;
 
-    const startStr = `${String(startH).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
+    const startStr = `${String(Math.min(23, Math.max(0, startH))).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
     const endStr = `${String(Math.min(23, endH)).padStart(2, '0')}:${String(endH >= 24 ? 59 : endM).padStart(2, '0')}`;
 
     setNewTask({ id: null, type: 'scheduled', title: '', date: dateStr, startTime: startStr, endTime: endStr, repeat: 'none' });
@@ -285,15 +289,15 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleEditScheduled = (e, task) => {
+  const handleEditTask = (e, task, type) => {
     e.stopPropagation();
     setNewTask({
       id: task.id,
-      type: 'scheduled',
+      type: type,
       title: task.title,
-      date: task.date,
-      startTime: task.startTime,
-      endTime: task.endTime,
+      date: task.date || formatDate(new Date()),
+      startTime: task.startTime || '09:00',
+      endTime: task.endTime || '10:00',
       repeat: task.repeat || 'none'
     });
     setIsModalOpen(true);
@@ -384,7 +388,7 @@ export default function App() {
     const rect = e.currentTarget.getBoundingClientRect();
     const y = e.clientY - rect.top;
     const snappedMinutes = Math.floor(y / 15) * 15;
-    const newStartH = Math.floor(snappedMinutes / 60);
+    const newStartH = Math.floor(snappedMinutes / 60) + START_HOUR;
     const newStartM = snappedMinutes % 60;
     
     let durationMins = 60;
@@ -394,10 +398,10 @@ export default function App() {
       durationMins = (eh * 60 + em) - (sh * 60 + sm);
     }
     const newEndMinutes = snappedMinutes + durationMins;
-    const newEndH = Math.floor(newEndMinutes / 60);
+    const newEndH = Math.floor(newEndMinutes / 60) + START_HOUR;
     const newEndM = newEndMinutes % 60;
 
-    const newStartStr = `${String(Math.min(23, newStartH)).padStart(2, '0')}:${String(newStartM).padStart(2, '0')}`;
+    const newStartStr = `${String(Math.min(23, Math.max(0, newStartH))).padStart(2, '0')}:${String(newStartM).padStart(2, '0')}`;
     const newEndStr = `${String(Math.min(23, newEndH)).padStart(2, '0')}:${String(newEndH >= 24 ? 59 : newEndM).padStart(2, '0')}`;
 
     const newData = {
@@ -597,10 +601,13 @@ export default function App() {
                           draggable
                           onDragStart={(e) => handleDragStart(e, task.id, 'flexible')}
                           onDragEnd={handleDragEnd}
-                          onClick={(e) => { e.stopPropagation(); toggleFlexibleTask(task.id); }}
-                          className={`group text-[10px] sm:text-xs mb-1 sm:mb-1.5 p-1.5 sm:p-2 rounded border transition-all cursor-move flex items-start space-x-1.5 sm:space-x-2 ${task.isCompleted ? 'bg-slate-900/50 border-slate-800 text-slate-600' : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'}`}
+                          onClick={(e) => handleEditTask(e, task, 'flexible')}
+                          className={`group text-[10px] sm:text-xs mb-1 sm:mb-1.5 p-1.5 sm:p-2 rounded border transition-all cursor-move flex items-start space-x-1.5 sm:space-x-2 ${task.isCompleted ? 'bg-slate-900 border-slate-800 text-slate-600' : 'bg-slate-800 border-slate-600 text-slate-200 hover:border-cyan-700 hover:bg-slate-700'} z-20 shadow-sm`}
                         >
-                          <div className={`mt-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm border flex-shrink-0 transition-colors ${task.isCompleted ? 'bg-slate-700 border-slate-600' : 'border-slate-500'}`}>
+                          <div 
+                            onClick={(e) => { e.stopPropagation(); toggleFlexibleTask(task.id); }}
+                            className={`mt-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-sm border flex-shrink-0 transition-colors cursor-pointer hover:border-cyan-400 ${task.isCompleted ? 'bg-slate-700 border-slate-600' : 'border-slate-500'}`}
+                          >
                             {task.isCompleted && <X size={10} className="text-slate-900 w-2 h-2 sm:w-2.5 sm:h-2.5 m-px" />}
                           </div>
                           <span className={`flex-1 leading-tight ${task.isCompleted ? 'line-through' : ''}`}>{task.title}</span>
@@ -617,9 +624,9 @@ export default function App() {
 
             {/* Time Grid */}
             <div className="flex relative bg-slate-950 flex-1">
-              <div className="w-14 sm:w-16 flex-shrink-0 border-r border-slate-800 bg-slate-900/60 relative" style={{ height: `${24 * 60}px` }}>
+              <div className="w-14 sm:w-16 flex-shrink-0 border-r border-slate-800 bg-slate-900/60 relative" style={{ height: `${TOTAL_HOURS * 60}px` }}>
                 {hours.map(h => (
-                  <div key={h} className="absolute w-full text-right pr-1.5 sm:pr-2 text-xs sm:text-sm font-mono text-slate-400 -mt-2.5" style={{ top: `${h * 60}px` }}>
+                  <div key={h} className="absolute w-full text-right pr-1.5 sm:pr-2 text-xs sm:text-sm font-mono text-slate-400 -mt-2.5" style={{ top: `${(h - START_HOUR) * 60}px` }}>
                     {String(h).padStart(2, '0')}:00
                   </div>
                 ))}
@@ -644,8 +651,8 @@ export default function App() {
                 return (
                   <div 
                     key={dayIndex} 
-                    className={`flex-1 border-r border-slate-800 relative cursor-pointer hover:bg-cyan-900/5 transition-colors ${isToday ? 'bg-cyan-900/10' : ''}`} 
-                    style={{ height: `${24 * 60}px` }}
+                    className={`flex-1 border-r border-slate-800 relative cursor-pointer hover:bg-cyan-900/5 transition-colors overflow-hidden ${isToday ? 'bg-cyan-900/10' : ''}`} 
+                    style={{ height: `${TOTAL_HOURS * 60}px` }}
                     onMouseDown={handleMouseDown}
                     onTouchStart={handleMouseDown}
                     onDoubleClick={(e) => handleGridDoubleClick(e, dateStr)}
@@ -654,15 +661,15 @@ export default function App() {
                   >
                     {/* Grid Lines */}
                     {hours.map(h => (
-                      <div key={h} className="absolute w-full border-t border-slate-800/50 pointer-events-none" style={{ top: `${h * 60}px` }}></div>
+                      <div key={h} className="absolute w-full border-t border-slate-800/50 pointer-events-none" style={{ top: `${(h - START_HOUR) * 60}px` }}></div>
                     ))}
                     
                     {/* Tasks */}
                     {todaysTasks.map(task => {
                       const [startH, startM] = task.startTime.split(':').map(Number);
                       const [endH, endM] = task.endTime.split(':').map(Number);
-                      const top = startH * 60 + startM;
-                      const height = (endH * 60 + endM) - top;
+                      const top = (startH - START_HOUR) * 60 + startM;
+                      const height = (endH * 60 + endM) - (startH * 60 + startM);
                       
                       const isDragged = draggedTask?.id === task.id;
                       const style = { top: `${top}px`, height: `${Math.max(20, height)}px` };
@@ -673,8 +680,8 @@ export default function App() {
                           draggable
                           onDragStart={(e) => handleDragStart(e, task.id, 'scheduled')}
                           onDragEnd={handleDragEnd}
-                          onClick={(e) => handleEditScheduled(e, task)}
-                          className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded p-1 sm:p-2 text-[9px] sm:text-[10px] leading-tight overflow-hidden transition-all group cursor-move z-10 border shadow-sm ${isDragged ? 'opacity-50' : 'opacity-100'} bg-cyan-900/40 border-cyan-800 text-cyan-100 hover:bg-cyan-800/60`}
+                          onClick={(e) => handleEditTask(e, task, 'scheduled')}
+                          className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded p-1 sm:p-2 text-[9px] sm:text-[10px] leading-tight overflow-hidden transition-all group cursor-move z-20 border shadow-md ${isDragged ? 'opacity-50' : 'opacity-100'} bg-cyan-950 border-cyan-700 text-cyan-100 hover:bg-cyan-900`}
                           style={style}
                         >
                           <div className="font-semibold truncate">{task.title}</div>
@@ -714,9 +721,10 @@ export default function App() {
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id, 'databank')}
                   onDragEnd={handleDragEnd}
-                  className="bg-slate-800 border border-slate-700 p-2 rounded text-xs mb-2 cursor-move hover:border-purple-500 transition-colors group flex justify-between items-start"
+                  onClick={(e) => handleEditTask(e, task, 'databank')}
+                  className="bg-slate-800 border border-slate-600 p-2 rounded text-xs mb-2 cursor-move hover:border-cyan-500 hover:bg-slate-700 transition-colors group flex justify-between items-start shadow-sm"
                 >
-                  <span className="text-slate-300">{task.title}</span>
+                  <span className="text-slate-200">{task.title}</span>
                   <button onClick={(e) => handleDeleteTask(task.id, 'databank', e)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-400 ml-2 shrink-0">
                     <X size={12} />
                   </button>
