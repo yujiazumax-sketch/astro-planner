@@ -3,11 +3,12 @@ import { ChevronLeft, ChevronRight, Plus, X, Calendar, Clock, Trash2, CalendarDa
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // =========================================================================
 // 🛑 REPLACE THESE VALUES WITH YOUR FIREBASE CONFIGURATION 🛑
+// Make sure this is named 'myFirebaseConfig' and NOT 'firebaseConfig'
 // =========================================================================
 const myFirebaseConfig = {
   apiKey: "AIzaSyDLQk9dHA19QDSz_0XZWROMaYnec_SoBsI",
@@ -50,9 +51,11 @@ const formatTimeDisplay = (timeStr) => timeStr;
 export default function App() {
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(new Date()));
   const [isDatabankOpen, setIsDatabankOpen] = useState(false);
+  const [weekAnim, setWeekAnim] = useState(''); // Tracks animation direction
   
   // --- State ---
   const [user, setUser] = useState(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(true);
   const [databankTasks, setDatabankTasks] = useState([]);
   const [flexibleTasks, setFlexibleTasks] = useState([]);
   const [scheduledTasks, setScheduledTasks] = useState([]);
@@ -77,21 +80,23 @@ export default function App() {
 
   // --- FIREBASE SYNC HOOKS ---
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) {
-        console.error("Auth failed", err);
-      }
-    };
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, setUser);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthenticating(false);
+    });
     return () => unsubscribe();
   }, []);
+
+  const handleLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err) {
+      console.error("Login failed", err);
+    }
+  };
+
+  const handleLogout = () => signOut(auth);
 
   useEffect(() => {
     if (!user) return;
@@ -124,9 +129,22 @@ export default function App() {
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   // --- Handlers ---
-  const handlePrevWeek = () => setCurrentWeekStart(prev => addDays(prev, -7));
-  const handleNextWeek = () => setCurrentWeekStart(prev => addDays(prev, 7));
-  const handleToday = () => setCurrentWeekStart(getStartOfWeek(new Date()));
+  const handlePrevWeek = () => {
+    setWeekAnim('animate-slide-prev');
+    setCurrentWeekStart(prev => addDays(prev, -7));
+  };
+  
+  const handleNextWeek = () => {
+    setWeekAnim('animate-slide-next');
+    setCurrentWeekStart(prev => addDays(prev, 7));
+  };
+  
+  const handleToday = () => {
+    const today = getStartOfWeek(new Date());
+    if (today.getTime() > currentWeekStart.getTime()) setWeekAnim('animate-slide-next');
+    else if (today.getTime() < currentWeekStart.getTime()) setWeekAnim('animate-slide-prev');
+    setCurrentWeekStart(today);
+  };
 
   const handleSwipeStart = (e) => {
     if (e.button === 2 || (e.touches && e.touches.length > 1)) return;
@@ -345,6 +363,28 @@ export default function App() {
     setDraggedTask(null);
   };
 
+  if (isAuthenticating) {
+    return <div className="h-screen w-full bg-slate-950 flex items-center justify-center text-cyan-500 font-mono tracking-widest text-xs sm:text-sm">INITIALIZING_UPLINK...</div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="h-screen w-full bg-slate-950 flex flex-col items-center justify-center text-slate-200 font-mono p-4 select-none">
+        <Database size={56} className="text-cyan-500 mb-6 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
+        <h1 className="text-xl sm:text-3xl font-bold text-cyan-400 mb-3 tracking-widest text-center">ASTRO-MECHA UPLINK</h1>
+        <p className="text-slate-500 text-xs sm:text-sm mb-8 text-center max-w-md leading-relaxed">
+          To synchronize your schedules across PC and Mobile, a secure cloud connection identity is required.
+        </p>
+        <button 
+          onClick={handleLogin} 
+          className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all flex items-center active:scale-95 text-xs sm:text-sm"
+        >
+          ESTABLISH CONNECTION (GOOGLE LOGIN)
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-full flex flex-col bg-slate-950 text-slate-200 font-sans overflow-hidden select-none">
       
@@ -368,7 +408,7 @@ export default function App() {
         <div className="flex items-center space-x-2 sm:space-x-4">
           <div className="text-right hidden sm:block">
             <div className="text-[10px] sm:text-xs font-mono text-cyan-500 font-semibold tracking-widest uppercase">System.Online</div>
-            <div className="text-[9px] sm:text-[10px] font-mono text-slate-500">{user ? 'DB: Connected' : 'DB: Syncing...'}</div>
+            <button onClick={handleLogout} className="text-[9px] sm:text-[10px] font-mono text-slate-500 hover:text-red-400 transition-colors uppercase">Disconnect [{user.displayName?.split(' ')[0] || 'User'}]</button>
           </div>
           <button 
             onClick={() => { setNewTask({ type: 'scheduled', title: '', date: formatDate(new Date()), startTime: '09:00', endTime: '10:00', repeat: 'none' }); setIsModalOpen(true); }}
@@ -393,8 +433,20 @@ export default function App() {
           onMouseDown={handleSwipeStart}
           onMouseUp={handleSwipeEnd}
         >
-          <style>{`.custom-scrollbar::-webkit-scrollbar { display: none; }`}</style>
-          <div className="min-w-[800px] flex flex-col h-full">
+          <style>{`
+            .custom-scrollbar::-webkit-scrollbar { display: none; }
+            @keyframes slideNext {
+              0% { transform: translateX(40px); opacity: 0; }
+              100% { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slidePrev {
+              0% { transform: translateX(-40px); opacity: 0; }
+              100% { transform: translateX(0); opacity: 1; }
+            }
+            .animate-slide-next { animation: slideNext 0.25s ease-out forwards; }
+            .animate-slide-prev { animation: slidePrev 0.25s ease-out forwards; }
+          `}</style>
+          <div key={currentWeekStart.toISOString()} className={`min-w-[800px] flex flex-col h-full ${weekAnim}`}>
             
             {/* Day Headers */}
             <div className="flex sticky top-0 z-40 bg-slate-950 border-b border-slate-800 shadow-md">
