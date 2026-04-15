@@ -9,7 +9,7 @@ import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc
 // =========================================================================
 // 🛑 REPLACE THESE VALUES WITH YOUR FIREBASE CONFIGURATION 🛑
 // =========================================================================
-const firebaseConfig = {
+const myFirebaseConfig = {
   apiKey: "AIzaSyDLQk9dHA19QDSz_0XZWROMaYnec_SoBsI",
   authDomain: "astro-planner-86f55.firebaseapp.com",
   projectId: "astro-planner-86f55",
