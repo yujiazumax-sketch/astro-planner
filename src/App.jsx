@@ -3,8 +3,8 @@ import { ChevronLeft, ChevronRight, Plus, X, Calendar, Clock, Trash2, CalendarDa
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
-// Added getRedirectResult
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
+// Switched to Email/Password to bypass Apple's PWA blocking
+import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // =========================================================================
@@ -57,6 +57,9 @@ export default function App() {
   // --- State ---
   const [user, setUser] = useState(null);
   const [isAuthenticating, setIsAuthenticating] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
   const [databankTasks, setDatabankTasks] = useState([]);
   const [flexibleTasks, setFlexibleTasks] = useState([]);
   const [scheduledTasks, setScheduledTasks] = useState([]);
@@ -81,37 +84,47 @@ export default function App() {
 
   // --- FIREBASE SYNC HOOKS ---
   useEffect(() => {
-    let unsubscribe;
-
-    const initAuth = async () => {
-      // 1. Tell the app to wait for Google's redirect data to finish loading
-      try {
-        await getRedirectResult(auth);
-      } catch (error) {
-        console.error("Redirect auth error:", error);
-      }
-      
-      // 2. Only AFTER checking the redirect, update the user state
-      unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser);
-        setIsAuthenticating(false);
-      });
-    };
-
-    initAuth();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setIsAuthenticating(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const handleLogin = async () => {
-    setIsAuthenticating(true); // Show the loading screen so it doesn't flash
-    const provider = new GoogleAuthProvider();
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    setIsAuthenticating(true);
     try {
-      await signInWithRedirect(auth, provider);
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      console.error("Login failed", err);
+      console.error(err);
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        setAuthError('Access Denied: Invalid credentials.');
+      } else {
+        setAuthError(err.message);
+      }
+      setIsAuthenticating(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setAuthError('');
+    if (password.length < 6) {
+      setAuthError('Passcode must be at least 6 characters.');
+      return;
+    }
+    setIsAuthenticating(true);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      console.error(err);
+      if (err.code === 'auth/email-already-in-use') {
+        setAuthError('Uplink already established for this email. Please login.');
+      } else {
+        setAuthError(err.message);
+      }
       setIsAuthenticating(false);
     }
   };
@@ -392,15 +405,50 @@ export default function App() {
       <div className="h-screen w-full bg-slate-950 flex flex-col items-center justify-center text-slate-200 font-mono p-4 select-none">
         <Database size={56} className="text-cyan-500 mb-6 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]" />
         <h1 className="text-xl sm:text-3xl font-bold text-cyan-400 mb-3 tracking-widest text-center">ASTRO-MECHA UPLINK</h1>
-        <p className="text-slate-500 text-xs sm:text-sm mb-8 text-center max-w-md leading-relaxed">
-          To synchronize your schedules across PC and Mobile, a secure cloud connection identity is required.
+        <p className="text-slate-500 text-xs sm:text-sm mb-6 text-center max-w-sm leading-relaxed">
+          Establish a secure, localized connection identity to synchronize across PC and Mobile.
         </p>
-        <button 
-          onClick={handleLogin} 
-          className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded shadow-[0_0_20px_rgba(6,182,212,0.4)] hover:shadow-[0_0_30px_rgba(6,182,212,0.6)] transition-all flex items-center active:scale-95 text-xs sm:text-sm"
-        >
-          ESTABLISH CONNECTION (GOOGLE LOGIN)
-        </button>
+        
+        <form className="w-full max-w-xs space-y-4" onSubmit={handleLogin}>
+          <div>
+            <input 
+              type="email" 
+              placeholder="Uplink.Email" 
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 text-cyan-50 rounded px-4 py-3 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono text-xs sm:text-sm placeholder-slate-600"
+              required
+            />
+          </div>
+          <div>
+            <input 
+              type="password" 
+              placeholder="Uplink.Passcode" 
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-700 text-cyan-50 rounded px-4 py-3 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 font-mono text-xs sm:text-sm placeholder-slate-600"
+              required
+            />
+          </div>
+          
+          {authError && <div className="text-red-400 text-[10px] sm:text-xs text-center p-2 bg-red-950/30 rounded border border-red-900/50">{authError}</div>}
+          
+          <div className="flex space-x-3 pt-2">
+            <button 
+              type="button"
+              onClick={handleRegister}
+              className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-bold rounded border border-slate-700 transition-all text-[10px] sm:text-xs tracking-wider active:scale-95"
+            >
+              [ REGISTER ]
+            </button>
+            <button 
+              type="submit"
+              className="flex-1 py-3 bg-cyan-600 hover:bg-cyan-500 text-slate-950 font-bold rounded shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_25px_rgba(6,182,212,0.5)] transition-all text-[10px] sm:text-xs tracking-wider active:scale-95"
+            >
+              [ LOGIN ]
+            </button>
+          </div>
+        </form>
       </div>
     );
   }
@@ -428,7 +476,7 @@ export default function App() {
         <div className="flex items-center space-x-2 sm:space-x-4">
           <div className="text-right hidden sm:block">
             <div className="text-[10px] sm:text-xs font-mono text-cyan-500 font-semibold tracking-widest uppercase">System.Online</div>
-            <button onClick={handleLogout} className="text-[9px] sm:text-[10px] font-mono text-slate-500 hover:text-red-400 transition-colors uppercase">Disconnect [{user.displayName?.split(' ')[0] || 'User'}]</button>
+            <button onClick={handleLogout} className="text-[9px] sm:text-[10px] font-mono text-slate-500 hover:text-red-400 transition-colors uppercase">Disconnect [{user.email?.split('@')[0] || 'User'}]</button>
           </div>
           <button 
             onClick={() => { setNewTask({ type: 'scheduled', title: '', date: formatDate(new Date()), startTime: '09:00', endTime: '10:00', repeat: 'none' }); setIsModalOpen(true); }}
