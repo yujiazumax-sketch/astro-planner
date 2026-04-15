@@ -1,0 +1,15 @@
+{
+  "name": "Astro Mechanic Planner",
+  "short_name": "AstroMecha",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#06b6d4",
+  "icons": [
+    {
+      "src": "[https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Check_green_icon.svg/512px-Check_green_icon.svg.png](https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Check_green_icon.svg/512px-Check_green_icon.svg.png)",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
