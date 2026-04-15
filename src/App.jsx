@@ -3,8 +3,8 @@ import { ChevronLeft, ChevronRight, Plus, X, Calendar, Clock, Trash2, CalendarDa
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
-// Changed signInWithPopup to signInWithRedirect
-import { getAuth, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
+// Added getRedirectResult
+import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // =========================================================================
@@ -81,20 +81,38 @@ export default function App() {
 
   // --- FIREBASE SYNC HOOKS ---
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsAuthenticating(false);
-    });
-    return () => unsubscribe();
+    let unsubscribe;
+
+    const initAuth = async () => {
+      // 1. Tell the app to wait for Google's redirect data to finish loading
+      try {
+        await getRedirectResult(auth);
+      } catch (error) {
+        console.error("Redirect auth error:", error);
+      }
+      
+      // 2. Only AFTER checking the redirect, update the user state
+      unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+        setIsAuthenticating(false);
+      });
+    };
+
+    initAuth();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   const handleLogin = async () => {
+    setIsAuthenticating(true); // Show the loading screen so it doesn't flash
     const provider = new GoogleAuthProvider();
     try {
-      // Swapped to Redirect to fix iPhone popup blocking
       await signInWithRedirect(auth, provider);
     } catch (err) {
       console.error("Login failed", err);
+      setIsAuthenticating(false);
     }
   };
 
