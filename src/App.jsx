@@ -3,7 +3,8 @@ import { ChevronLeft, ChevronRight, Plus, X, Calendar, Clock, Trash2, CalendarDa
 
 // --- FIREBASE IMPORTS ---
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
+// Changed signInWithPopup to signInWithRedirect
+import { getAuth, signInWithRedirect, GoogleAuthProvider, onAuthStateChanged, signOut } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // =========================================================================
@@ -90,7 +91,8 @@ export default function App() {
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      await signInWithPopup(auth, provider);
+      // Swapped to Redirect to fix iPhone popup blocking
+      await signInWithRedirect(auth, provider);
     } catch (err) {
       console.error("Login failed", err);
     }
