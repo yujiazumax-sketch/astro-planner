@@ -515,7 +515,7 @@ export default function App() {
         className="h-screen w-full flex flex-col items-center justify-center text-gray-800 font-sans p-4 select-none bg-cover bg-center"
         style={{ backgroundImage: `url(${BG_IMAGE_URL})` }}
       >
-        <div className="bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-xl w-full max-w-sm flex flex-col items-center border border-white">
+        <div className="bg-white/20 backdrop-blur-md p-8 rounded-2xl shadow-xl w-full max-w-sm flex flex-col items-center border border-white">
           <Database size={48} className="text-blue-600 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">Planner Login</h1>
           <p className="text-gray-500 text-sm mb-6 text-center leading-relaxed">
