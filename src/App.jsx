@@ -64,6 +64,7 @@ const TOTAL_HOURS = END_HOUR - START_HOUR;
 
 export default function App() {
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(new Date()));
+  const [isDatabankOpen, setIsDatabankOpen] = useState(true);
   const [weekAnim, setWeekAnim] = useState('');
   
   // --- State ---
@@ -367,18 +368,21 @@ export default function App() {
     const taskRef = doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', id);
     const originalTask = scheduledTasks.find(t => t.id === id);
 
+    // FIX: Cleanly extract and remove 'id' and 'originalDate' so Firestore doesn't reject the payload
+    const { id: pendingId, originalDate, ...dataToSave } = pendingData;
+
     try {
       if (scope === 'single') {
         await updateDoc(taskRef, { deletedDates: [...(originalTask.deletedDates || []), instanceDate] });
         const newId = Date.now().toString();
         await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', newId), {
-          ...pendingData, id: undefined, date: pendingData.date, repeat: 'none', repeatInterval: 1, deletedDates: [], stoppedOnDate: null
+          ...dataToSave, date: pendingData.date, repeat: 'none', repeatInterval: 1, deletedDates: [], stoppedOnDate: null
         });
       } else if (scope === 'future') {
         await updateDoc(taskRef, { stoppedOnDate: instanceDate });
         const newId = Date.now().toString();
         await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', newId), {
-          ...pendingData, id: undefined, date: pendingData.date, deletedDates: [], stoppedOnDate: null
+          ...dataToSave, date: pendingData.date, deletedDates: [], stoppedOnDate: null
         });
       } else if (scope === 'all') {
         await updateDoc(taskRef, {
@@ -515,7 +519,7 @@ export default function App() {
         className="h-screen w-full flex flex-col items-center justify-center text-gray-800 font-sans p-4 select-none bg-cover bg-center"
         style={{ backgroundImage: `url(${BG_IMAGE_URL})` }}
       >
-        <div className="bg-white/5 backdrop-blur-md p-8 rounded-2xl shadow-xl w-full max-w-sm flex flex-col items-center border border-white">
+        <div className="bg-white/90 backdrop-blur-md p-8 rounded-2xl shadow-xl w-full max-w-sm flex flex-col items-center border border-white">
           <Database size={48} className="text-blue-600 mb-4" />
           <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">Planner Login</h1>
           <p className="text-gray-500 text-sm mb-6 text-center leading-relaxed">
@@ -573,6 +577,10 @@ export default function App() {
       {/* HEADER (Solid background) */}
       <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white border-b border-gray-200 shrink-0 shadow-sm z-50">
         <div className="flex items-center space-x-2 sm:space-x-4">
+          <button onClick={() => setIsDatabankOpen(!isDatabankOpen)} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${isDatabankOpen ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-500 hover:text-blue-600 hover:bg-gray-200'}`}>
+            <Database size={18} className="sm:w-5 sm:h-5" />
+          </button>
+          <div className="h-4 sm:h-6 w-px bg-gray-300 mx-1"></div>
           <div className="flex items-center space-x-1 bg-gray-100/80 rounded-lg p-1 border border-gray-200">
             <button onClick={handlePrevWeek} className="p-1 sm:p-1.5 hover:bg-white rounded text-gray-500 hover:text-blue-600 transition-colors shadow-sm"><ChevronLeft size={16} className="sm:w-5 sm:h-5"/></button>
             <button onClick={handleToday} className="px-3 sm:px-4 py-1 text-xs font-semibold text-gray-700 hover:text-blue-600 transition-colors">Today</button>
@@ -779,43 +787,48 @@ export default function App() {
         </div>
 
         {/* DATABANK SIDEBAR (Solid background, no image behind it) */}
-        <div 
-          className="w-64 bg-white border-l border-gray-200 flex flex-col z-50 shrink-0 shadow-[-5px_0_20px_rgba(0,0,0,0.05)]"
-          onDragOver={handleDragOver}
-          onDrop={handleDatabankDrop}
-        >
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/80">
-            <h2 className="text-sm font-bold text-gray-800 flex items-center space-x-2">
-              <Database size={16} className="text-blue-600" /> <span>Databank</span>
-            </h2>
+        {isDatabankOpen && (
+          <div 
+            className="w-64 bg-white border-l border-gray-200 flex flex-col z-50 shrink-0 shadow-[-5px_0_20px_rgba(0,0,0,0.05)]"
+            onDragOver={handleDragOver}
+            onDrop={handleDatabankDrop}
+          >
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/80">
+              <h2 className="text-sm font-bold text-gray-800 flex items-center space-x-2">
+                <Database size={16} className="text-blue-600" /> <span>Databank</span>
+              </h2>
+              <button onClick={() => setIsDatabankOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-md transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-3 overflow-y-auto flex-1">
+              {databankTasks.map(task => (
+                <div 
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, task.id, 'databank')}
+                    onDragEnd={handleDragEnd}
+                    onClick={(e) => handleEditTask(e, task, 'databank')}
+                    className="bg-white border border-gray-200 p-3 rounded-lg text-xs mb-2.5 cursor-move hover:border-blue-400 hover:shadow-md transition-all group flex flex-col items-start shadow-sm"
+                  >
+                    <div className="flex justify-between w-full items-start">
+                      <span className="text-gray-800 font-medium leading-tight">{task.title}</span>
+                      <button onClick={(e) => handleDeleteTask(task.id, 'databank', e)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 ml-2 shrink-0 transition-opacity">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    {task.description && <span className="text-[10px] text-gray-500 mt-1 line-clamp-2">{task.description}</span>}
+                </div>
+              ))}
+              <button 
+                onClick={() => { setNewTask(getInitialTaskState({ type: 'databank' })); setIsModalOpen(true); }}
+                className="w-full mt-2 py-3 border border-dashed border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 rounded-lg text-xs font-semibold transition-colors flex justify-center items-center space-x-1"
+              >
+                <Plus size={14} /> <span>Add Entry</span>
+              </button>
+            </div>
           </div>
-          <div className="p-3 overflow-y-auto flex-1">
-            {databankTasks.map(task => (
-              <div 
-                  key={task.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, task.id, 'databank')}
-                  onDragEnd={handleDragEnd}
-                  onClick={(e) => handleEditTask(e, task, 'databank')}
-                  className="bg-white border border-gray-200 p-3 rounded-lg text-xs mb-2.5 cursor-move hover:border-blue-400 hover:shadow-md transition-all group flex flex-col items-start shadow-sm"
-                >
-                  <div className="flex justify-between w-full items-start">
-                    <span className="text-gray-800 font-medium leading-tight">{task.title}</span>
-                    <button onClick={(e) => handleDeleteTask(task.id, 'databank', e)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 ml-2 shrink-0 transition-opacity">
-                      <X size={14} />
-                    </button>
-                  </div>
-                  {task.description && <span className="text-[10px] text-gray-500 mt-1 line-clamp-2">{task.description}</span>}
-              </div>
-            ))}
-            <button 
-              onClick={() => { setNewTask(getInitialTaskState({ type: 'databank' })); setIsModalOpen(true); }}
-              className="w-full mt-2 py-3 border border-dashed border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 rounded-lg text-xs font-semibold transition-colors flex justify-center items-center space-x-1"
-            >
-              <Plus size={14} /> <span>Add Entry</span>
-            </button>
-          </div>
-        </div>
+        )}
 
       </div>
 
