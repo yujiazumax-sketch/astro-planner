@@ -49,6 +49,11 @@ const formatDate = (date) => {
 const getDayName = (date) => ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"][date.getDay()];
 const formatTimeDisplay = (timeStr) => timeStr;
 
+const parseLocal = (dStr) => {
+  const [y, m, d] = dStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
 const START_HOUR = 7;
 const END_HOUR = 24;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -75,17 +80,24 @@ export default function App() {
   const scrollContainerRef = useRef(null);
   const swipeStartRef = useRef(null);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(null); 
-  const [newTask, setNewTask] = useState({
+  const getInitialTaskState = (overrides = {}) => ({
     id: null,
     type: 'scheduled',
     title: '',
+    description: '',
     date: formatDate(new Date()),
     startTime: '09:00',
     endTime: '10:00',
-    repeat: 'none'
+    repeat: 'none',
+    repeatInterval: 1,
+    originalDate: null,
+    ...overrides
   });
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null); 
+  const [editConfirm, setEditConfirm] = useState(null);
+  const [newTask, setNewTask] = useState(getInitialTaskState());
 
   // --- FIREBASE SYNC HOOKS ---
   useEffect(() => {
@@ -273,7 +285,7 @@ export default function App() {
     const startStr = `${String(Math.min(23, Math.max(0, startH))).padStart(2, '0')}:${String(startM).padStart(2, '0')}`;
     const endStr = `${String(Math.min(23, endH)).padStart(2, '0')}:${String(endH >= 24 ? 59 : endM).padStart(2, '0')}`;
 
-    setNewTask({ id: null, type: 'scheduled', title: '', date: dateStr, startTime: startStr, endTime: endStr, repeat: 'none' });
+    setNewTask(getInitialTaskState({ type: 'scheduled', date: dateStr, startTime: startStr, endTime: endStr }));
     setIsModalOpen(true);
   };
 
@@ -285,20 +297,24 @@ export default function App() {
     const dy = Math.abs(clientY - mouseDownPos.current.y);
     if (dx > 10 || dy > 10) return;
 
-    setNewTask({ id: null, type: 'flexible', title: '', date: dateStr, startTime: '09:00', endTime: '10:00', repeat: 'none' });
+    setNewTask(getInitialTaskState({ type: 'flexible', date: dateStr }));
     setIsModalOpen(true);
   };
 
-  const handleEditTask = (e, task, type) => {
+  const handleEditTask = (e, task, type, instanceDateStr = null) => {
     e.stopPropagation();
+    const effectiveDate = instanceDateStr || task.date || formatDate(new Date());
     setNewTask({
       id: task.id,
       type: type,
       title: task.title,
-      date: task.date || formatDate(new Date()),
+      description: task.description || '',
+      date: effectiveDate,
       startTime: task.startTime || '09:00',
       endTime: task.endTime || '10:00',
-      repeat: task.repeat || 'none'
+      repeat: task.repeat || 'none',
+      repeatInterval: task.repeatInterval || 1,
+      originalDate: effectiveDate
     });
     setIsModalOpen(true);
   };
@@ -307,25 +323,75 @@ export default function App() {
     if (!newTask.title.trim() || !user) return;
     const targetId = newTask.id || Date.now().toString();
 
+    // Check if editing a recurring scheduled task to prompt for scope
+    if (newTask.id && newTask.type === 'scheduled') {
+      const existing = scheduledTasks.find(t => t.id === targetId);
+      if (existing && existing.repeat && existing.repeat !== 'none') {
+        setEditConfirm({ id: targetId, instanceDate: newTask.originalDate, pendingData: newTask });
+        setIsModalOpen(false);
+        return;
+      }
+    }
+
+    await saveTaskDirectly(targetId, newTask);
+  };
+
+  const saveTaskDirectly = async (targetId, taskData) => {
     try {
-      if (newTask.type === 'databank') {
-        await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'databankTasks', targetId), { title: newTask.title });
+      if (taskData.type === 'databank') {
+        await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'databankTasks', targetId), { title: taskData.title, description: taskData.description });
         if (!isDatabankOpen) setIsDatabankOpen(true);
-      } else if (newTask.type === 'flexible') {
+      } else if (taskData.type === 'flexible') {
         const existing = flexibleTasks.find(t => t.id === targetId);
-        await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'flexibleTasks', targetId), { date: newTask.date, title: newTask.title, isCompleted: existing ? existing.isCompleted : false });
+        await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'flexibleTasks', targetId), { date: taskData.date, title: taskData.title, description: taskData.description, isCompleted: existing ? existing.isCompleted : false });
       } else {
         const existing = scheduledTasks.find(t => t.id === targetId);
         await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', targetId), {
-          date: newTask.date, startTime: newTask.startTime, endTime: newTask.endTime, title: newTask.title, repeat: newTask.repeat || 'none', deletedDates: existing ? existing.deletedDates : [], stoppedOnDate: existing ? existing.stoppedOnDate : null
+          date: taskData.date, 
+          startTime: taskData.startTime, 
+          endTime: taskData.endTime, 
+          title: taskData.title, 
+          description: taskData.description,
+          repeat: taskData.repeat || 'none', 
+          repeatInterval: taskData.repeatInterval || 1,
+          deletedDates: existing ? existing.deletedDates : [], 
+          stoppedOnDate: existing ? existing.stoppedOnDate : null
         });
       }
     } catch (e) {
       console.warn("Firestore sync bypassed. Local state update needed for full offline functionality.", e);
-      // In a real scenario we'd update local state here if Firestore fails.
     }
     setIsModalOpen(false);
-    setNewTask({ id: null, type: 'scheduled', title: '', date: formatDate(new Date()), startTime: '09:00', endTime: '10:00', repeat: 'none' }); 
+    setNewTask(getInitialTaskState()); 
+  };
+
+  const handleConfirmEdit = async (scope) => {
+    if (!editConfirm || !user) return;
+    const { id, instanceDate, pendingData } = editConfirm;
+    const taskRef = doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', id);
+    const originalTask = scheduledTasks.find(t => t.id === id);
+
+    try {
+      if (scope === 'single') {
+        await updateDoc(taskRef, { deletedDates: [...(originalTask.deletedDates || []), instanceDate] });
+        const newId = Date.now().toString();
+        await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', newId), {
+          ...pendingData, id: undefined, date: pendingData.date, repeat: 'none', repeatInterval: 1, deletedDates: [], stoppedOnDate: null
+        });
+      } else if (scope === 'future') {
+        await updateDoc(taskRef, { stoppedOnDate: instanceDate });
+        const newId = Date.now().toString();
+        await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'scheduledTasks', newId), {
+          ...pendingData, id: undefined, date: pendingData.date, deletedDates: [], stoppedOnDate: null
+        });
+      } else if (scope === 'all') {
+        await updateDoc(taskRef, {
+          title: pendingData.title, description: pendingData.description, startTime: pendingData.startTime, endTime: pendingData.endTime, repeat: pendingData.repeat, repeatInterval: pendingData.repeatInterval
+        });
+      }
+    } catch(e) { console.warn("Firestore bypassed", e); }
+    setEditConfirm(null);
+    setNewTask(getInitialTaskState());
   };
 
   const handleDeleteTask = async (id, type, e, dateStr = null) => {
@@ -406,10 +472,12 @@ export default function App() {
 
     const newData = {
       title: taskData.title,
+      description: taskData.description || '',
       date: targetDateStr,
       startTime: newStartStr,
       endTime: newEndStr,
       repeat: taskData.repeat || 'none',
+      repeatInterval: taskData.repeatInterval || 1,
       deletedDates: taskData.deletedDates || [],
       stoppedOnDate: taskData.stoppedOnDate || null
     };
@@ -425,7 +493,7 @@ export default function App() {
     const taskData = getTaskData(taskId, source);
     if (!taskData) return;
 
-    const newData = { date: targetDateStr, title: taskData.title, isCompleted: taskData.isCompleted || false };
+    const newData = { date: targetDateStr, title: taskData.title, description: taskData.description || '', isCompleted: taskData.isCompleted || false };
     await moveTaskInFirestore(taskId, source, 'flexible', newData);
     setDraggedTask(null);
   };
@@ -437,7 +505,7 @@ export default function App() {
     const taskData = getTaskData(taskId, source);
     if (!taskData) return;
 
-    await moveTaskInFirestore(taskId, source, 'databank', { title: taskData.title });
+    await moveTaskInFirestore(taskId, source, 'databank', { title: taskData.title, description: taskData.description || '' });
     setDraggedTask(null);
   };
 
@@ -524,7 +592,7 @@ export default function App() {
             <button onClick={handleLogout} className="text-[9px] sm:text-[10px] font-mono text-slate-500 hover:text-red-400 transition-colors uppercase">Disconnect [{user.email?.split('@')[0] || 'User'}]</button>
           </div>
           <button 
-            onClick={() => { setNewTask({ id: null, type: 'scheduled', title: '', date: formatDate(new Date()), startTime: '09:00', endTime: '10:00', repeat: 'none' }); setIsModalOpen(true); }}
+            onClick={() => { setNewTask(getInitialTaskState()); setIsModalOpen(true); }}
             className="flex items-center space-x-1 sm:space-x-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 px-3 py-1.5 sm:px-4 sm:py-2 rounded font-mono text-[10px] sm:text-xs font-bold transition-all shadow-[0_0_15px_rgba(6,182,212,0.4)] hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] active:scale-95"
           >
             <Plus size={14} className="sm:w-4 sm:h-4" />
@@ -642,7 +710,15 @@ export default function App() {
                   if (tRepeat === 'none') return t.date === dateStr;
                   if (tRepeat === 'daily') return dateStr >= t.date;
                   if (tRepeat === 'weekly') {
-                    return dateStr >= t.date && new Date(dateStr).getDay() === new Date(t.date).getDay();
+                    const taskDate = parseLocal(t.date);
+                    const currDate = parseLocal(dateStr);
+                    if (currDate < taskDate) return false;
+                    if (currDate.getDay() !== taskDate.getDay()) return false;
+                    
+                    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+                    const weeksDiff = Math.round((currDate.getTime() - taskDate.getTime()) / msPerWeek);
+                    const interval = t.repeatInterval || 1;
+                    return weeksDiff % interval === 0;
                   }
                   return false;
                 });
@@ -680,12 +756,13 @@ export default function App() {
                           draggable
                           onDragStart={(e) => handleDragStart(e, task.id, 'scheduled')}
                           onDragEnd={handleDragEnd}
-                          onClick={(e) => handleEditTask(e, task, 'scheduled')}
-                          className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded p-1 sm:p-2 text-[9px] sm:text-[10px] leading-tight overflow-hidden transition-all group cursor-move z-20 border shadow-md ${isDragged ? 'opacity-50' : 'opacity-100'} bg-cyan-950 border-cyan-700 text-cyan-100 hover:bg-cyan-900`}
+                          onClick={(e) => handleEditTask(e, task, 'scheduled', dateStr)}
+                          className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded p-1 sm:p-2 text-[9px] sm:text-[10px] leading-tight overflow-hidden transition-all group cursor-move z-20 border shadow-md flex flex-col ${isDragged ? 'opacity-50' : 'opacity-100'} bg-cyan-950 border-cyan-700 text-cyan-100 hover:bg-cyan-900`}
                           style={style}
                         >
                           <div className="font-semibold truncate">{task.title}</div>
-                          <div className="text-[8px] sm:text-[9px] text-cyan-400 opacity-80">{task.startTime} - {task.endTime}</div>
+                          <div className="text-[8px] sm:text-[9px] text-cyan-400 opacity-80 shrink-0">{task.startTime} - {task.endTime}</div>
+                          {task.description && <div className="text-[8px] text-slate-400 truncate mt-0.5">{task.description}</div>}
                           <button onClick={(e) => handleDeleteTask(task.id, 'scheduled', e, dateStr)} className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-cyan-500 hover:text-red-400">
                             <X size={10} className="sm:w-3 sm:h-3" />
                           </button>
@@ -731,7 +808,7 @@ export default function App() {
                 </div>
               ))}
               <button 
-                onClick={() => { setNewTask({ id: null, type: 'databank', title: '', date: formatDate(new Date()), startTime: '09:00', endTime: '10:00', repeat: 'none' }); setIsModalOpen(true); }}
+                onClick={() => { setNewTask(getInitialTaskState({ type: 'databank' })); setIsModalOpen(true); }}
                 className="w-full mt-2 py-2 border border-dashed border-slate-700 text-slate-500 hover:text-purple-400 hover:border-purple-500 rounded text-xs font-mono transition-colors flex justify-center items-center space-x-1"
               >
                 <Plus size={12} /> <span>ADD_ENTRY</span>
@@ -754,6 +831,20 @@ export default function App() {
             </div>
             
             <div className="p-4 flex flex-col space-y-4">
+              
+              {/* TASK TYPE SELECTOR */}
+              <div className="flex bg-slate-950 p-1 rounded border border-slate-800">
+                {['scheduled', 'flexible', 'databank'].map(t => (
+                  <button 
+                    key={t} 
+                    onClick={() => setNewTask({...newTask, type: t})} 
+                    className={`flex-1 py-1.5 text-[10px] font-mono uppercase rounded transition-colors ${newTask.type === t ? 'bg-cyan-900 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+
               <div>
                 <label className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Title / Objective</label>
                 <input 
@@ -763,6 +854,17 @@ export default function App() {
                   onChange={(e) => setNewTask({...newTask, title: e.target.value})}
                   className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-sm text-cyan-50 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
                   placeholder="Enter task designation..."
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Description / Notes</label>
+                <textarea 
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  rows="2"
+                  className="w-full bg-slate-950 border border-slate-700 rounded px-3 py-2 text-xs text-cyan-50 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 resize-none"
+                  placeholder="Optional context..."
                 />
               </div>
 
@@ -803,6 +905,20 @@ export default function App() {
                       <option value="weekly">Weekly Loop</option>
                     </select>
                   </div>
+
+                  {newTask.repeat === 'weekly' && (
+                    <div>
+                      <label className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Interval (Every X Weeks)</label>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="52"
+                        value={newTask.repeatInterval}
+                        onChange={(e) => setNewTask({...newTask, repeatInterval: Math.max(1, parseInt(e.target.value) || 1)})}
+                        className="w-full bg-slate-950 border border-slate-700 rounded px-2 py-1.5 text-xs text-cyan-50 focus:outline-none focus:border-cyan-500"
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
@@ -848,6 +964,44 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setDeleteConfirm(null)}
+                className="w-full py-2 text-slate-500 hover:text-slate-300 text-xs mt-2"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT CONFIRMATION MODAL */}
+      {editConfirm && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+          <div className="bg-slate-900 border border-cyan-900/50 rounded-lg shadow-[0_0_30px_rgba(6,182,212,0.2)] w-full max-w-sm overflow-hidden flex flex-col p-5 items-center text-center">
+            <Repeat size={32} className="text-cyan-500 mb-3" />
+            <h2 className="font-bold text-slate-200 mb-1">Edit Recurring Task</h2>
+            <p className="text-xs text-slate-400 mb-5">This task is part of a recurring schedule. Apply these changes to:</p>
+            
+            <div className="flex flex-col space-y-2 w-full">
+              <button 
+                onClick={() => handleConfirmEdit('single')}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-100 text-xs rounded transition-colors"
+              >
+                This instance only
+              </button>
+              <button 
+                onClick={() => handleConfirmEdit('future')}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-cyan-100 text-xs rounded transition-colors"
+              >
+                This and all future instances
+              </button>
+              <button 
+                onClick={() => handleConfirmEdit('all')}
+                className="w-full py-2 bg-cyan-900/40 hover:bg-cyan-900/60 text-cyan-400 border border-cyan-900/50 text-xs rounded transition-colors"
+              >
+                All instances
+              </button>
+              <button 
+                onClick={() => setEditConfirm(null)}
                 className="w-full py-2 text-slate-500 hover:text-slate-300 text-xs mt-2"
               >
                 Cancel
