@@ -568,13 +568,10 @@ export default function App() {
   }
 
   return (
-    <div 
-      className="h-screen w-full flex flex-col text-gray-800 font-sans overflow-hidden select-none bg-cover bg-center"
-      style={{ backgroundImage: `url(${BG_IMAGE_URL})` }}
-    >
+    <div className="h-screen w-full flex flex-col text-gray-800 font-sans overflow-hidden select-none bg-gray-50">
       
-      {/* HEADER */}
-      <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white/90 backdrop-blur-md border-b border-gray-200 shrink-0 shadow-sm z-50">
+      {/* HEADER (Solid background) */}
+      <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white border-b border-gray-200 shrink-0 shadow-sm z-50">
         <div className="flex items-center space-x-2 sm:space-x-4">
           <div className="flex items-center space-x-1 bg-gray-100/80 rounded-lg p-1 border border-gray-200">
             <button onClick={handlePrevWeek} className="p-1 sm:p-1.5 hover:bg-white rounded text-gray-500 hover:text-blue-600 transition-colors shadow-sm"><ChevronLeft size={16} className="sm:w-5 sm:h-5"/></button>
@@ -604,185 +601,190 @@ export default function App() {
       {/* BODY CONTENT AREA */}
       <div className="flex flex-1 overflow-hidden relative">
         
-        {/* MAIN CALENDAR AREA */}
+        {/* MAIN CALENDAR AREA (WITH BACKGROUND IMAGE) */}
         <div 
-          className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar touch-pan-x touch-pan-y relative" 
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          ref={scrollContainerRef}
-          onTouchStart={handleSwipeStart}
-          onTouchEnd={handleSwipeEnd}
-          onMouseDown={handleSwipeStart}
-          onMouseUp={handleSwipeEnd}
+          className="flex-1 relative bg-cover bg-center"
+          style={{ backgroundImage: `url(${BG_IMAGE_URL})` }}
         >
-          <style>{`
-            .custom-scrollbar::-webkit-scrollbar { display: none; }
-            @keyframes slideNext {
-              0% { transform: translateX(40px); opacity: 0; }
-              100% { transform: translateX(0); opacity: 1; }
-            }
-            @keyframes slidePrev {
-              0% { transform: translateX(-40px); opacity: 0; }
-              100% { transform: translateX(0); opacity: 1; }
-            }
-            .animate-slide-next { animation: slideNext 0.25s ease-out forwards; }
-            .animate-slide-prev { animation: slidePrev 0.25s ease-out forwards; }
-          `}</style>
-          <div key={currentWeekStart.toISOString()} className={`min-w-[800px] flex flex-col h-full ${weekAnim}`}>
-            
-            {/* Day Headers */}
-            <div className="flex sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-gray-200 shadow-sm">
-              <div className="w-14 sm:w-16 flex-shrink-0 border-r border-gray-200"></div>
-              {weekDays.map((day, i) => {
-                const isToday = formatDate(day) === formatDate(new Date());
-                return (
-                  <div key={i} className={`flex-1 flex flex-col items-center py-2 sm:py-3 border-r border-gray-200 ${isToday ? 'bg-blue-50/80 relative' : ''}`}>
-                    {isToday && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500"></div>}
-                    <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{getDayName(day)}</span>
-                    <span className={`text-lg sm:text-2xl mt-0.5 ${isToday ? 'text-blue-700 font-bold' : 'text-gray-800 font-medium'}`}>{day.getDate()}</span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Flexible Task Row */}
-            <div className="flex border-b border-gray-200 bg-gray-50/80 backdrop-blur-md relative z-30">
-              <div className="w-14 sm:w-16 flex-shrink-0 border-r border-gray-200 flex items-center justify-center">
-                <span className="text-[9px] sm:text-[10px] font-bold text-gray-400 uppercase -rotate-90 tracking-widest w-max whitespace-nowrap">Flexible</span>
+          <div 
+            className="absolute inset-0 overflow-x-auto overflow-y-auto custom-scrollbar touch-pan-x touch-pan-y" 
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            ref={scrollContainerRef}
+            onTouchStart={handleSwipeStart}
+            onTouchEnd={handleSwipeEnd}
+            onMouseDown={handleSwipeStart}
+            onMouseUp={handleSwipeEnd}
+          >
+            <style>{`
+              .custom-scrollbar::-webkit-scrollbar { display: none; }
+              @keyframes slideNext {
+                0% { transform: translateX(40px); opacity: 0; }
+                100% { transform: translateX(0); opacity: 1; }
+              }
+              @keyframes slidePrev {
+                0% { transform: translateX(-40px); opacity: 0; }
+                100% { transform: translateX(0); opacity: 1; }
+              }
+              .animate-slide-next { animation: slideNext 0.25s ease-out forwards; }
+              .animate-slide-prev { animation: slidePrev 0.25s ease-out forwards; }
+            `}</style>
+            <div key={currentWeekStart.toISOString()} className={`min-w-[800px] flex flex-col h-full ${weekAnim}`}>
+              
+              {/* Day Headers (Lowered blur and opacity) */}
+              <div className="flex sticky top-0 z-40 bg-white/80 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+                <div className="w-14 sm:w-16 flex-shrink-0 border-r border-gray-200 bg-white/50"></div>
+                {weekDays.map((day, i) => {
+                  const isToday = formatDate(day) === formatDate(new Date());
+                  return (
+                    <div key={i} className={`flex-1 flex flex-col items-center py-2 sm:py-3 border-r border-gray-200 ${isToday ? 'bg-blue-50/70 relative' : ''}`}>
+                      {isToday && <div className="absolute top-0 left-0 w-full h-0.5 bg-blue-500"></div>}
+                      <span className={`text-[10px] sm:text-xs font-semibold uppercase tracking-wider ${isToday ? 'text-blue-600' : 'text-gray-600'}`}>{getDayName(day)}</span>
+                      <span className={`text-lg sm:text-2xl mt-0.5 ${isToday ? 'text-blue-700 font-bold' : 'text-gray-800 font-medium'}`}>{day.getDate()}</span>
+                    </div>
+                  );
+                })}
               </div>
-              {weekDays.map((day, i) => {
-                const dateStr = formatDate(day);
-                const todaysFlexibleTasks = flexibleTasks.filter(t => t.date === dateStr);
-                return (
-                  <div 
-                    key={i} 
-                    className="flex-1 border-r border-gray-200 p-1.5 sm:p-2 min-h-[70px] sm:min-h-[80px] cursor-pointer hover:bg-gray-100/50 transition-colors group/cell"
-                    onMouseDown={handleMouseDown}
-                    onTouchStart={handleMouseDown}
-                    onDoubleClick={(e) => handleFlexibleDoubleClick(e, dateStr)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleFlexibleDrop(e, dateStr)}
-                  >
-                    {todaysFlexibleTasks.map(task => {
-                      return (
-                        <div 
-                          key={task.id} 
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id, 'flexible')}
-                          onDragEnd={handleDragEnd}
-                          onClick={(e) => handleEditTask(e, task, 'flexible')}
-                          className={`group text-[11px] sm:text-xs mb-1.5 p-1.5 sm:p-2 rounded border transition-all cursor-move flex items-start space-x-2 ${task.isCompleted ? 'bg-gray-100 border-gray-200 text-gray-400' : 'bg-white border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md'} z-20 shadow-sm`}
-                        >
+
+              {/* Flexible Task Row (Lowered blur and opacity) */}
+              <div className="flex border-b border-gray-200 bg-white/60 backdrop-blur-sm relative z-30">
+                <div className="w-14 sm:w-16 flex-shrink-0 border-r border-gray-200 flex items-center justify-center bg-white/50">
+                  <span className="text-[9px] sm:text-[10px] font-bold text-gray-500 uppercase -rotate-90 tracking-widest w-max whitespace-nowrap">Flexible</span>
+                </div>
+                {weekDays.map((day, i) => {
+                  const dateStr = formatDate(day);
+                  const todaysFlexibleTasks = flexibleTasks.filter(t => t.date === dateStr);
+                  return (
+                    <div 
+                      key={i} 
+                      className="flex-1 border-r border-gray-200 p-1.5 sm:p-2 min-h-[70px] sm:min-h-[80px] cursor-pointer hover:bg-white/40 transition-colors group/cell"
+                      onMouseDown={handleMouseDown}
+                      onTouchStart={handleMouseDown}
+                      onDoubleClick={(e) => handleFlexibleDoubleClick(e, dateStr)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleFlexibleDrop(e, dateStr)}
+                    >
+                      {todaysFlexibleTasks.map(task => {
+                        return (
                           <div 
-                            onClick={(e) => { e.stopPropagation(); toggleFlexibleTask(task.id); }}
-                            className={`mt-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border flex-shrink-0 transition-colors cursor-pointer hover:border-blue-400 flex items-center justify-center ${task.isCompleted ? 'bg-gray-200 border-gray-300' : 'border-gray-300 bg-white'}`}
+                            key={task.id} 
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, task.id, 'flexible')}
+                            onDragEnd={handleDragEnd}
+                            onClick={(e) => handleEditTask(e, task, 'flexible')}
+                            className={`group text-[11px] sm:text-xs mb-1.5 p-1.5 sm:p-2 rounded border transition-all cursor-move flex items-start space-x-2 ${task.isCompleted ? 'bg-gray-100/90 border-gray-200 text-gray-400' : 'bg-white/95 border-gray-200 text-gray-700 hover:border-blue-400 hover:shadow-md'} z-20 shadow-sm`}
                           >
-                            {task.isCompleted && <X size={10} className="text-gray-500 w-2.5 h-2.5" />}
+                            <div 
+                              onClick={(e) => { e.stopPropagation(); toggleFlexibleTask(task.id); }}
+                              className={`mt-0.5 w-3 h-3 sm:w-3.5 sm:h-3.5 rounded border flex-shrink-0 transition-colors cursor-pointer hover:border-blue-400 flex items-center justify-center ${task.isCompleted ? 'bg-gray-200 border-gray-300' : 'border-gray-300 bg-white'}`}
+                            >
+                              {task.isCompleted && <X size={10} className="text-gray-500 w-2.5 h-2.5" />}
+                            </div>
+                            <span className={`flex-1 leading-tight ${task.isCompleted ? 'line-through' : 'font-medium'}`}>{task.title}</span>
+                            <button onClick={(e) => handleDeleteTask(task.id, 'flexible', e)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity">
+                              <X size={14} className="w-3.5 h-3.5" />
+                            </button>
                           </div>
-                          <span className={`flex-1 leading-tight ${task.isCompleted ? 'line-through' : 'font-medium'}`}>{task.title}</span>
-                          <button onClick={(e) => handleDeleteTask(task.id, 'flexible', e)} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-500 transition-opacity">
-                            <X size={14} className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Time Grid */}
-            <div className="flex relative bg-white/70 backdrop-blur-md flex-1">
-              <div className="w-14 sm:w-16 flex-shrink-0 border-r border-gray-200 bg-white/50 relative" style={{ height: `${TOTAL_HOURS * 60}px` }}>
-                {hours.map(h => (
-                  <div key={h} className="absolute w-full text-right pr-2 text-[10px] sm:text-xs text-gray-500 -mt-2" style={{ top: `${(h - START_HOUR) * 60}px` }}>
-                    {String(h).padStart(2, '0')}:00
-                  </div>
-                ))}
+                        );
+                      })}
+                    </div>
+                  );
+                })}
               </div>
 
-              {weekDays.map((day, dayIndex) => {
-                const dateStr = formatDate(day);
-                const todaysTasks = scheduledTasks.filter(t => {
-                  if (t.deletedDates && t.deletedDates.includes(dateStr)) return false;
-                  if (t.stoppedOnDate && dateStr >= t.stoppedOnDate) return false;
-                  
-                  const tRepeat = t.repeat || 'none';
-                  if (tRepeat === 'none') return t.date === dateStr;
-                  if (tRepeat === 'daily') return dateStr >= t.date;
-                  if (tRepeat === 'weekly') {
-                    const taskDate = parseLocal(t.date);
-                    const currDate = parseLocal(dateStr);
-                    if (currDate < taskDate) return false;
-                    if (currDate.getDay() !== taskDate.getDay()) return false;
-                    
-                    const msPerWeek = 7 * 24 * 60 * 60 * 1000;
-                    const weeksDiff = Math.round((currDate.getTime() - taskDate.getTime()) / msPerWeek);
-                    const interval = t.repeatInterval || 1;
-                    return weeksDiff % interval === 0;
-                  }
-                  return false;
-                });
-                const isToday = dateStr === formatDate(new Date());
+              {/* Time Grid (Lowered blur and opacity for clear image visibility) */}
+              <div className="flex relative bg-white/40 backdrop-blur-sm flex-1">
+                <div className="w-14 sm:w-16 flex-shrink-0 border-r border-gray-200 bg-white/60 relative" style={{ height: `${TOTAL_HOURS * 60}px` }}>
+                  {hours.map(h => (
+                    <div key={h} className="absolute w-full text-right pr-2 text-[10px] sm:text-xs text-gray-600 font-medium -mt-2" style={{ top: `${(h - START_HOUR) * 60}px` }}>
+                      {String(h).padStart(2, '0')}:00
+                    </div>
+                  ))}
+                </div>
 
-                return (
-                  <div 
-                    key={dayIndex} 
-                    className={`flex-1 border-r border-gray-200 relative cursor-pointer hover:bg-gray-50/30 transition-colors overflow-hidden ${isToday ? 'bg-blue-50/20' : ''}`} 
-                    style={{ height: `${TOTAL_HOURS * 60}px` }}
-                    onMouseDown={handleMouseDown}
-                    onTouchStart={handleMouseDown}
-                    onDoubleClick={(e) => handleGridDoubleClick(e, dateStr)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleGridDrop(e, dateStr)}
-                  >
-                    {/* Grid Lines */}
-                    {hours.map(h => (
-                      <div key={h} className="absolute w-full border-t border-gray-200 pointer-events-none" style={{ top: `${(h - START_HOUR) * 60}px` }}></div>
-                    ))}
+                {weekDays.map((day, dayIndex) => {
+                  const dateStr = formatDate(day);
+                  const todaysTasks = scheduledTasks.filter(t => {
+                    if (t.deletedDates && t.deletedDates.includes(dateStr)) return false;
+                    if (t.stoppedOnDate && dateStr >= t.stoppedOnDate) return false;
                     
-                    {/* Tasks */}
-                    {todaysTasks.map(task => {
-                      const [startH, startM] = task.startTime.split(':').map(Number);
-                      const [endH, endM] = task.endTime.split(':').map(Number);
-                      const top = (startH - START_HOUR) * 60 + startM;
-                      const height = (endH * 60 + endM) - (startH * 60 + startM);
+                    const tRepeat = t.repeat || 'none';
+                    if (tRepeat === 'none') return t.date === dateStr;
+                    if (tRepeat === 'daily') return dateStr >= t.date;
+                    if (tRepeat === 'weekly') {
+                      const taskDate = parseLocal(t.date);
+                      const currDate = parseLocal(dateStr);
+                      if (currDate < taskDate) return false;
+                      if (currDate.getDay() !== taskDate.getDay()) return false;
                       
-                      const isDragged = draggedTask?.id === task.id;
-                      const style = { top: `${top}px`, height: `${Math.max(22, height)}px` };
+                      const msPerWeek = 7 * 24 * 60 * 60 * 1000;
+                      const weeksDiff = Math.round((currDate.getTime() - taskDate.getTime()) / msPerWeek);
+                      const interval = t.repeatInterval || 1;
+                      return weeksDiff % interval === 0;
+                    }
+                    return false;
+                  });
+                  const isToday = dateStr === formatDate(new Date());
 
-                      return (
-                        <div 
-                          key={task.id}
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, task.id, 'scheduled')}
-                          onDragEnd={handleDragEnd}
-                          onClick={(e) => handleEditTask(e, task, 'scheduled', dateStr)}
-                          className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded-md p-1.5 sm:p-2 text-[10px] sm:text-xs leading-tight overflow-hidden transition-all group cursor-move z-20 border shadow-md flex flex-col ${isDragged ? 'opacity-60 scale-95' : 'opacity-100 hover:shadow-lg'} bg-blue-100/95 backdrop-blur-sm border-blue-200 text-blue-900 hover:bg-blue-200/95`}
-                          style={style}
-                        >
-                          <div className="font-bold truncate">{task.title}</div>
-                          <div className="text-[9px] sm:text-[10px] text-blue-700 opacity-90 shrink-0 font-medium">{task.startTime} - {task.endTime}</div>
-                          {task.description && <div className="text-[9px] text-blue-600/80 truncate mt-0.5">{task.description}</div>}
-                          <button onClick={(e) => handleDeleteTask(task.id, 'scheduled', e, dateStr)} className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-blue-500 hover:text-red-500 transition-opacity bg-white/50 rounded-sm">
-                            <X size={12} className="sm:w-3.5 sm:h-3.5" />
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                  return (
+                    <div 
+                      key={dayIndex} 
+                      className={`flex-1 border-r border-gray-200/60 relative cursor-pointer hover:bg-white/30 transition-colors overflow-hidden ${isToday ? 'bg-blue-50/30' : ''}`} 
+                      style={{ height: `${TOTAL_HOURS * 60}px` }}
+                      onMouseDown={handleMouseDown}
+                      onTouchStart={handleMouseDown}
+                      onDoubleClick={(e) => handleGridDoubleClick(e, dateStr)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleGridDrop(e, dateStr)}
+                    >
+                      {/* Grid Lines */}
+                      {hours.map(h => (
+                        <div key={h} className="absolute w-full border-t border-gray-200/60 pointer-events-none" style={{ top: `${(h - START_HOUR) * 60}px` }}></div>
+                      ))}
+                      
+                      {/* Tasks */}
+                      {todaysTasks.map(task => {
+                        const [startH, startM] = task.startTime.split(':').map(Number);
+                        const [endH, endM] = task.endTime.split(':').map(Number);
+                        const top = (startH - START_HOUR) * 60 + startM;
+                        const height = (endH * 60 + endM) - (startH * 60 + startM);
+                        
+                        const isDragged = draggedTask?.id === task.id;
+                        const style = { top: `${top}px`, height: `${Math.max(22, height)}px` };
+
+                        return (
+                          <div 
+                            key={task.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, task.id, 'scheduled')}
+                            onDragEnd={handleDragEnd}
+                            onClick={(e) => handleEditTask(e, task, 'scheduled', dateStr)}
+                            className={`absolute left-1 right-1 sm:left-2 sm:right-2 rounded-md p-1.5 sm:p-2 text-[10px] sm:text-xs leading-tight overflow-hidden transition-all group cursor-move z-20 border shadow-md flex flex-col ${isDragged ? 'opacity-60 scale-95' : 'opacity-100 hover:shadow-lg'} bg-blue-100/95 backdrop-blur-none border-blue-200 text-blue-900 hover:bg-blue-200/95`}
+                            style={style}
+                          >
+                            <div className="font-bold truncate">{task.title}</div>
+                            <div className="text-[9px] sm:text-[10px] text-blue-700 opacity-90 shrink-0 font-medium">{task.startTime} - {task.endTime}</div>
+                            {task.description && <div className="text-[9px] text-blue-600/80 truncate mt-0.5">{task.description}</div>}
+                            <button onClick={(e) => handleDeleteTask(task.id, 'scheduled', e, dateStr)} className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-blue-500 hover:text-red-500 transition-opacity bg-white/50 rounded-sm">
+                              <X size={12} className="sm:w-3.5 sm:h-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* DATABANK SIDEBAR */}
+        {/* DATABANK SIDEBAR (Solid background, no image behind it) */}
         <div 
-          className="w-64 bg-white/95 backdrop-blur-xl border-l border-gray-200 flex flex-col z-50 shrink-0 shadow-[-5px_0_20px_rgba(0,0,0,0.05)]"
+          className="w-64 bg-white border-l border-gray-200 flex flex-col z-50 shrink-0 shadow-[-5px_0_20px_rgba(0,0,0,0.05)]"
           onDragOver={handleDragOver}
           onDrop={handleDatabankDrop}
         >
-          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/80">
             <h2 className="text-sm font-bold text-gray-800 flex items-center space-x-2">
               <Database size={16} className="text-blue-600" /> <span>Databank</span>
             </h2>
