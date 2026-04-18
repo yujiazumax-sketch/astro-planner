@@ -30,7 +30,7 @@ const artifactAppId = typeof __app_id !== 'undefined' ? __app_id : 'astro-mecha'
 // 🎨 THEME CONFIGURATION
 // Swap this URL to change the background image!
 // =========================================================================
-const BG_IMAGE_URL = "https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=2600&auto=format&fit=crop";
+const BG_IMAGE_URL = "/background.png";
 
 // --- Utility Functions for Dates ---
 const getStartOfWeek = (date) => {
