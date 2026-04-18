@@ -30,7 +30,8 @@ const artifactAppId = typeof __app_id !== 'undefined' ? __app_id : 'astro-mecha'
 // 🎨 THEME CONFIGURATION
 // Swap this URL to change the background image!
 // =========================================================================
-const BG_IMAGE_URL = "/background.png";
+const BG_IMAGE_URL = "https://images.unsplash.com/photo-1518655048521-f130df041f66?q=80&w=2600&auto=format&fit=crop";
+
 // --- Utility Functions for Dates ---
 const getStartOfWeek = (date) => {
   const d = new Date(date);
@@ -63,7 +64,6 @@ const TOTAL_HOURS = END_HOUR - START_HOUR;
 
 export default function App() {
   const [currentWeekStart, setCurrentWeekStart] = useState(getStartOfWeek(new Date()));
-  const [isDatabankOpen, setIsDatabankOpen] = useState(false);
   const [weekAnim, setWeekAnim] = useState('');
   
   // --- State ---
@@ -337,7 +337,6 @@ export default function App() {
     try {
       if (taskData.type === 'databank') {
         await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'databankTasks', targetId), { title: taskData.title, description: taskData.description });
-        if (!isDatabankOpen) setIsDatabankOpen(true);
       } else if (taskData.type === 'flexible') {
         const existing = flexibleTasks.find(t => t.id === targetId);
         await setDoc(doc(db, 'artifacts', artifactAppId, 'users', user.uid, 'flexibleTasks', targetId), { date: taskData.date, title: taskData.title, description: taskData.description, isCompleted: existing ? existing.isCompleted : false });
@@ -577,10 +576,6 @@ export default function App() {
       {/* HEADER */}
       <div className="flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 bg-white/90 backdrop-blur-md border-b border-gray-200 shrink-0 shadow-sm z-50">
         <div className="flex items-center space-x-2 sm:space-x-4">
-          <button onClick={() => setIsDatabankOpen(!isDatabankOpen)} className={`p-1.5 sm:p-2 rounded-lg transition-colors ${isDatabankOpen ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-gray-100 text-gray-500 hover:text-blue-600 hover:bg-gray-200'}`}>
-            <Database size={18} className="sm:w-5 sm:h-5" />
-          </button>
-          <div className="h-4 sm:h-6 w-px bg-gray-300 mx-1"></div>
           <div className="flex items-center space-x-1 bg-gray-100/80 rounded-lg p-1 border border-gray-200">
             <button onClick={handlePrevWeek} className="p-1 sm:p-1.5 hover:bg-white rounded text-gray-500 hover:text-blue-600 transition-colors shadow-sm"><ChevronLeft size={16} className="sm:w-5 sm:h-5"/></button>
             <button onClick={handleToday} className="px-3 sm:px-4 py-1 text-xs font-semibold text-gray-700 hover:text-blue-600 transition-colors">Today</button>
@@ -782,23 +777,19 @@ export default function App() {
         </div>
 
         {/* DATABANK SIDEBAR */}
-        {isDatabankOpen && (
-          <div 
-            className="w-64 bg-white/95 backdrop-blur-xl border-l border-gray-200 flex flex-col z-50 shrink-0 shadow-[-5px_0_20px_rgba(0,0,0,0.05)]"
-            onDragOver={handleDragOver}
-            onDrop={handleDatabankDrop}
-          >
-            <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
-              <h2 className="text-sm font-bold text-gray-800 flex items-center space-x-2">
-                <Database size={16} className="text-blue-600" /> <span>Databank</span>
-              </h2>
-              <button onClick={() => setIsDatabankOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-100 rounded-md transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="p-3 overflow-y-auto flex-1">
-              {databankTasks.map(task => (
-                <div 
+        <div 
+          className="w-64 bg-white/95 backdrop-blur-xl border-l border-gray-200 flex flex-col z-50 shrink-0 shadow-[-5px_0_20px_rgba(0,0,0,0.05)]"
+          onDragOver={handleDragOver}
+          onDrop={handleDatabankDrop}
+        >
+          <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50/50">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center space-x-2">
+              <Database size={16} className="text-blue-600" /> <span>Databank</span>
+            </h2>
+          </div>
+          <div className="p-3 overflow-y-auto flex-1">
+            {databankTasks.map(task => (
+              <div 
                   key={task.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, task.id, 'databank')}
@@ -813,17 +804,16 @@ export default function App() {
                     </button>
                   </div>
                   {task.description && <span className="text-[10px] text-gray-500 mt-1 line-clamp-2">{task.description}</span>}
-                </div>
-              ))}
-              <button 
-                onClick={() => { setNewTask(getInitialTaskState({ type: 'databank' })); setIsModalOpen(true); }}
-                className="w-full mt-2 py-3 border border-dashed border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 rounded-lg text-xs font-semibold transition-colors flex justify-center items-center space-x-1"
-              >
-                <Plus size={14} /> <span>Add Entry</span>
-              </button>
-            </div>
+              </div>
+            ))}
+            <button 
+              onClick={() => { setNewTask(getInitialTaskState({ type: 'databank' })); setIsModalOpen(true); }}
+              className="w-full mt-2 py-3 border border-dashed border-gray-300 text-gray-500 hover:text-blue-600 hover:border-blue-400 hover:bg-blue-50/50 rounded-lg text-xs font-semibold transition-colors flex justify-center items-center space-x-1"
+            >
+              <Plus size={14} /> <span>Add Entry</span>
+            </button>
           </div>
-        )}
+        </div>
 
       </div>
 
